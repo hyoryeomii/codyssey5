@@ -15,30 +15,40 @@
 3. 실무형 예외 처리 및 예외 복구력 확보: API 키 미설정, 네트워크 타임아웃, Kakao API 인증 오류(401/403), JSON 파싱 실패 등 다양한 장애 상황에서도 프로그램이 중단되지 않고 대안 데이터로 작업을 끝까지 완성하는 에러 핸들링을 구현
 4. 보안 및 환경변수 관리 체계화: API 키 하드코딩 방지 및 .env, .gitignore 활용을 통해 보안 사고를 예방하는 개발 스타일을 익힘
 
+## 1.3 지도 API 추상화 레이어 설계 (지도 API 교체 대비)
+향후 Kakao Local API에서 Naver Place API, Google Places API 등 타 지도 서비스로 교체되더라도 메인 로직(`travel_planner.py`) 변경을 최소화하기 위해 인터페이스/플러그인 구조를 전제로 설계됨
+
 # 2. 프로젝트 파일 구조 및 설명
 
 ## 2.1 파일 구조
 
 ```
 travel_project/
-├── travel_planner.py      # CLI 실행, API 연동 및 전체 로직 제어 파이썬 메인 코드
-├── README.md              # 프로젝트 안내 및 과제 수행 학습 보고서(+ 주의사항)
+├── travel_planner.py      # 메인 프로그램 (CLI, 파이프라인 및 에러 핸들링)
+├── README.md              # 프로젝트 종합 안내 및 보고서
 ├── requirements.txt       # 의존성 라이브러리 목록
-├── .gitignore             # API 키(.env) 및 가상환경(venv) Git 추적 제외 설정 파일
+├── .gitignore             # API 키(.env) 및 가상환경 Git 추적 제외 설정
 └── results/               # 실행 결과 데이터 저장 폴더
-    ├── 2026-08-07_data.json       # 원본 데이터 (1차 추천 + 맛집 검색 + 오류 기록)
+    ├── 2026-08-07_data.json       # 원본 데이터 (1차 추천 + 맛집 + errors 로그)
     └── 2026-08-07_travel_plan.md  # 최종 마크다운 여행 리포트
 ```
-
-## 2.2 각 파일 및 역할
-
 - travel_planner.py: CLI 명령어를 수신(argparse)하고 OpenAI API와 Kakao Local API를 차례로 호출한 뒤, 파싱된 데이터와 오류를 모아 결과 파일로 저장하는 메인 프로그램
 - README.md: 제출용 종합 보고서로 프로젝트 개요, 실행 가이드, 핵심 기술 개념 답변 및 회고를 작성한 파일(+ API 키 보안 및 유출 주의사항)
 - requirements.txt: 프로젝트 실행에 필요한 외부 라이브러리 명세 파일입니다. 평가자가 동일 환경을 쉽게 구축할 수 있도록 지원
 - .gitignore: API 키가 포함된 .env 파일과 대용량 가상환경 venv/ 폴더가 실수로 Git/제출물에 포함되는 것을 방지
 - results/: 프로그램 실행 결과물이 날짜별(YYYY-MM-DD)로 차곡차곡 저장되는 출력 디렉토리
 
-# 3. 주요 기능
+
+## 2.2 모듈 및 주요 함수 목록 (입출력 명세)
+함수/모듈명입력값 (Input)출력값 (Output)주요 책임 및 역할validate_date(date_str)str (예: "2026-08-07")datetime.date 또는 ExceptionCLI 날짜 입력 형식을 검증하고 불일치 시 종료 및 도움말 출력get_ai_recommendation(date_str)str (날짜)TravelRecommendation (Pydantic Model)OpenAI Structured Output을 호출하여 1차 추천 JSON 생성 (실패 시 1회 재시도)normalize_city_name(raw_city)str (자연어 도시명)str (정규화된 도시명)불명확한 지명 보정 및 지도 검색용 키워드 표준화search_places(city, category)city: str, category: strList[Dict] (장소 목록)지도 API를 호출하여 장소 검색 (추상화 래퍼를 통해 처리)generate_markdown_report(data)Dict (통합 데이터)str (마크다운 문자열)OpenAI LLM을 통해 최종 마크다운 리포트 서식 생성main()CLI ArgumentsJSON / MD File전체 파이프라인 제어, 캐싱 검사, 에러 기록 및 파일 저장
+
+## 2.3 API 키 보안 및 환경변수 로딩 방식 (하드코딩 방지 검증)
+소스코드 내 API 키 하드코딩을 원천 차단하기 위해 python-dotenv를 사용하며, 실행 시 키 검증 로직 포함
+
+<img width="841" height="356" alt="image" src="https://github.com/user-attachments/assets/0361f2eb-c60e-4b8a-80a3-9027ac5778f8" />
+
+
+# 3. 주요 기능 및 실행 플로우
 
 ### **3.1 CLI 날짜 입력 및 검증: argparse를 활용하여 YYYY-MM-DD 형식 검증 후 처리, 입력값 날짜 형식이 올바르지 않으면 사용법 출력하고 종료**
 
@@ -179,6 +189,10 @@ KAKAO_REST_KEY="your_kakao_rest_key_here"
 
 
 ▲ CLI 터미널에서 프로그램이 정상 실행되어 카카오 API 맛집 검색까지 에러 없이 완료된 화면
+
+<img width="884" height="265" alt="image" src="https://github.com/user-attachments/assets/1759d6c5-7e69-42c0-ba95-1702c56b37db" />
+
+▲ 지도 API 실패 시 '데이터 없음' 표기가 반영
 
 ## 6.2 생성된 원본 데이터 JSON (results/2026-08-07_data.json)
 
