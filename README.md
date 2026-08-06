@@ -252,3 +252,10 @@ OpenAI, Kakao 등 대다수의 API 서비스는 사용량에 따라 실제 비�
 - 본 프로젝트를 진행하며 단순히 단일 API를 호출하는 수준을 넘어, LLM의 비정형 출력을 Pydantic 스키마 기반의 JSON 데이터로 구조화하고 이를 다시 외부 지도 API의 입력값으로 전달하는 API Chaining 파이프라인을 성공적으로 구축함
 - 특히 실무 환경에서 빈번히 발생하는 네트워크 타임아웃, 외부 API 인증 실패(401/403), JSON 파싱 오류 등의 장애 상황에서도 프로그램 전체가 중단되지 않고, errors 로그 기록 및 Fallback(대안 데이터) 처리를 통해 최종 리포트 생성을 완료하는 유연한 기능 저하 방식의 에러 핸들링 설계 가치를 이해할 수 있었음
 - .env 환경변수와 .gitignore를 활용한 API 키 보안 관리 및 가상환경 기반의 패키지 분리 설정을 통해, 오픈소스 협업 및 배포 환경에서 지켜야 할 기본적이고 핵심적인 보안 개발 습관을 체득함
+
+
+---
+
+## 🔗 GitHub 소스코드 저장소
+- **Repository**: [hyoryeomii/codyssey5/tree/main](https://github.com/hyoryeomii/codyssey5/tree/main)
+*※ 보안 및 환경 관리를 위해 `.env` 및 `venv/` 폴더는 Git 추적에서 제외*
