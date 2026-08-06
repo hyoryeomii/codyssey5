@@ -1,261 +1,184 @@
-# AI 기반 국내 여행 추천 CLI 프로그램
+# 🛫 AI 기반 국내 여행지 추천 CLI 프로그램
 
+OpenAI API와 Kakao Local 장소 검색 API를 연동하여 특정 날짜에 어울리는 국내 여행지와 맛집 정보를 추천하고, Markdown 리포트를 자동 생성해주는 CLI 프로그램입니다.
 
-# 1. 프로젝트 개요 및 목적
-
-## 1.1 프로젝트 개요
-
-- 본 프로젝트는 사용자가 입력한 여행 날짜(YYYY-MM-DD)를 기반으로 LLM API(OpenAI)와 지도/장소 API(Kakao Local)를 연쇄적으로 조합(API Chaining)하여 자동 추천 여행 리포트를 생성하는 CLI 기반 파이썬 프로그램
-- LLM이 특정 시기에 적합한 국내 여행지와 날씨·축제 정보를 구조화된 JSON 데이터로 생성하면, 지도 API가 해당 도시의 실시간 맛집 정보를 검색하여 최종 마크다운 리포트와 원본 JSON 데이터로 저장
-
-## 1.2 개발 목적
-
-1. 복수 API 연동 파이프라인 구축: 단일 API 호출을 넘어, LLM의 Output(JSON)을 지도 API의 Input으로 넘겨주는 연계 흐름 실습
-2. 구조화된 데이터 추출: 비정형 데이터(자연어)를 출력하는 LLM에 프롬프트를 적용하여 규격화된 JSON Schema 형태의 데이터를 안정적으로 추출
-3. 실무형 예외 처리 및 예외 복구력 확보: API 키 미설정, 네트워크 타임아웃, Kakao API 인증 오류(401/403), JSON 파싱 실패 등 다양한 장애 상황에서도 프로그램이 중단되지 않고 대안 데이터로 작업을 끝까지 완성하는 에러 핸들링을 구현
-4. 보안 및 환경변수 관리 체계화: API 키 하드코딩 방지 및 .env, .gitignore 활용을 통해 보안 사고를 예방하는 개발 스타일을 익힘
-
-# 2. 프로젝트 파일 구조 및 설명
-
-## 2.1 파일 구조
-
-```
-travel_project/
-├── travel_planner.py      # CLI 실행, API 연동 및 전체 로직 제어 파이썬 메인 코드
-├── README.md              # 프로젝트 안내 및 과제 수행 학습 보고서(+ 주의사항)
-├── requirements.txt       # 의존성 라이브러리 목록
-├── .gitignore             # API 키(.env) 및 가상환경(venv) Git 추적 제외 설정 파일
-└── results/               # 실행 결과 데이터 저장 폴더
-    ├── 2026-08-07_data.json       # 원본 데이터 (1차 추천 + 맛집 검색 + 오류 기록)
-    └── 2026-08-07_travel_plan.md  # 최종 마크다운 여행 리포트
-```
-
-## 2.2 각 파일 및 역할
-
-- travel_planner.py: CLI 명령어를 수신(argparse)하고 OpenAI API와 Kakao Local API를 차례로 호출한 뒤, 파싱된 데이터와 오류를 모아 결과 파일로 저장하는 메인 프로그램
-- README.md: 제출용 종합 보고서로 프로젝트 개요, 실행 가이드, 핵심 기술 개념 답변 및 회고를 작성한 파일(+ API 키 보안 및 유출 주의사항)
-- requirements.txt: 프로젝트 실행에 필요한 외부 라이브러리 명세 파일입니다. 평가자가 동일 환경을 쉽게 구축할 수 있도록 지원
-- .gitignore: API 키가 포함된 .env 파일과 대용량 가상환경 venv/ 폴더가 실수로 Git/제출물에 포함되는 것을 방지
-- results/: 프로그램 실행 결과물이 날짜별(YYYY-MM-DD)로 차곡차곡 저장되는 출력 디렉토리
-
-# 3. 주요 기능
-
-### **3.1 CLI 날짜 입력 및 검증: argparse를 활용하여 YYYY-MM-DD 형식 검증 후 처리, 입력값 날짜 형식이 올바르지 않으면 사용법 출력하고 종료**
-
-<img width="844" height="754" alt="image" src="https://github.com/user-attachments/assets/c55d0c57-6289-41ea-b4f2-77ec5aff3da2" />
-
-
-▲ 입력값 검증 함수 코드(+사용법)
-
-<img width="862" height="75" alt="image" src="https://github.com/user-attachments/assets/79b7ae79-c2f9-469c-846c-af9387cf078b" />
-
-▲ 입력값 날짜 형식이 올바르지 않을 경우
-
-### **3.2 1차 AI 여행 추천: OpenAI API를 통해 추천 도시, 날씨, 축제 정보, 추천 근거를 JSON 구조화 데이터로 추출**
-
-<img width="1070" height="934" alt="image" src="https://github.com/user-attachments/assets/b705e277-b50e-4d7c-92f5-6ddaabdd82d4" />
-
-
-▲ OpenAI 1차 추천 (Structured Output & 재시도 1회)
-
-### **3.3 2차 장소 API 연동: 추천된 도시를 기반으로 Kakao Local API를 호출하여 맛집 5곳 데이터 실시간 검색**
-
-<img width="1076" height="961" alt="image" src="https://github.com/user-attachments/assets/0314d96b-bd38-4b79-b76b-206c8322e297" />
-
-
-▲ Kakao Local API 맛집 검색 (예외 발생 시 Fallback)
-
-### **3.4 결과 리포트 자동 생성: 원본 데이터(results/YYYY-MM-DD_data.json) 및 최종 마크다운 리포트(results/YYYY-MM-DD_travel_plan.md) 저장**
-
-<img width="937" height="916" alt="image" src="https://github.com/user-attachments/assets/e213c0ef-03bd-45fc-82cb-1b3b4a46e905" />
-
-
-▲ OpenAI 최종 Markdown 리포트 생성
-
-### **3.5 에러 처리: 외부 API 인증 실패, 네트워크 오류, JSON 파싱 오류 발생 시에도 프로그램 중단 없이 errors 로그 기록 후 "데이터 없음"으로 진행**
-
-<img width="854" height="250" alt="image" src="https://github.com/user-attachments/assets/54f63d93-dcda-4f43-a519-54ac52a6fb83" />
-
-
-▲ API 키 미설정: 즉시 종료 + 설정 방법 안내 출력
-
-<img width="1012" height="343" alt="image" src="https://github.com/user-attachments/assets/32e761fb-60d1-451a-a9fe-02c4899cde60" />
-
-
-▲ 지도/장소 API 실패: 맛집 섹션 '데이터 없음' 처리 & 계속 진행
-
-<img width="1027" height="753" alt="image" src="https://github.com/user-attachments/assets/8edf7f4a-19a4-4878-ac45-11b3ceb59dce" />
-
-
-▲ LLM JSON 파싱 실패: 재시도 1회 수행
-
-<img width="658" height="34" alt="image" src="https://github.com/user-attachments/assets/351ac360-cad7-4417-b163-2f8f8e68dfc1" />
-
-
-▲ errors 섹션 요약 관리: 리포트에 오류 목록 기록 (빈 리스트 포함)
-
-- 마크다운에 ## 오류 요약(errors) 섹션 작성
-
-# 4. 개발 및 실행 환경
-
-- Language: Python 3.14.6 (최신 버전)
-
-<img width="627" height="45" alt="image" src="https://github.com/user-attachments/assets/6e0e48bd-d48a-48b8-99e5-c5b09b303a07" />
-
-
-- LLM API: OpenAI API (gpt-4o-mini)
-    - 선택 이유:
-        - 높은 가성비 및 빠른 응답 속도: 기존 모델 대비 비용이 저렴하면서도 추천 문맥을 정확하게 이해함
-        - 안정적인 구조화 출력 지원: Pydantic 스키마와 연동되어 LLM의 출력을 JSON 형태로 깨짐 없이 추출하는 데 가장 최적화되어 있음
-- Map API: Kakao Local REST API
-    - 선택 이유:
-        - 풍부하고 정확한 국내 장소 데이터: 국내 맛집, 상세 주소, 카테고리, 지도 URL, 좌표 정보 검색 시 가장 높은 정확도를 제공함
-        - REST API의 용이성: 별도의 거대한 SDK 설치 없이 requests 라이브러리만으로 손쉽게 호출 및 파싱 가능
-- 설치한 외부 파이썬 라이브러리
-    - openai
-        - OpenAI의 LLM 모델을 파이썬에서 손쉽게 호출하기 위한 공식 SDK 라이브러리
-        - 1차 여행지 추천 및 최종 마크다운 리포트 생성에 사용
-    - requests
-        - 외부 서버와 HTTP 통신(데이터 요청 및 응답 수신)
-        - Kakao Local API나 OpenAI API에 요청을 보내고 JSON 결과를 받아오기 위해
-    - python-dotenv
-        - 프로젝트 폴더 내 .env 파일에 적어둔 API 키 정보를 읽어와 파이썬 환경변수로 불러옴
-        - 코드 안에 API 키를 직접 적지 않고 보안을 지키며 키를 불러오기 위해 사용
-    - pydantic
-        - 데이터 입력값의 타입 검증 및 구조화를 담당하는 라이브러리
-        - LLM 응답 데이터가 지정한 JSON 형식을 잘 지켰는지 검증할 때 사용
-
-# 5. 설치 및 실행 방법
-
-### 5.1 가상환경 구축 및 패키지 설치
-
-```
-python -m venv venv
-source venv/bin/activate  # Windows: venv\Scripts\activate
-pip install -r requirements.txt
-```
-
-- 가상환경(venv)을 사용하는 이유
-    1. 프로젝트 간 패키지 충돌 방지: PC에 설치된 다른 파이썬 프로젝트들과 라이브러리 버전이 서로 꼬이거나 충돌하는 현상을 막아줌
-    2. 시스템 파이썬 환경 보호: OS 기본 파이썬 환경을 더럽히지 않고 해당 프로젝트만을 위한 독립된 공간을 제공함
-    3. 개발 환경의 재현성 확보: requirements.txt에 명시된 동일한 패키지 버전을 설치하여 평가자/협업자의 PC에서도 동일하게 실행되도록 보장함
-
-### 5.2 환경변수(.env) 설정
-
-프로젝트 루트 디렉토리에 .env 파일을 생성하고 발급받은 API 키 설정
-
-<예시>
-
-```
-OPENAI_API_KEY="your_openai_api_key_here"
-KAKAO_REST_KEY="your_kakao_rest_key_here"
-```
-
-- 카카오 API 이용 사전 설정 필수사항
-    
-<img width="1050" height="718" alt="image" src="https://github.com/user-attachments/assets/25510604-863b-44f1-9a2a-16aa5f2f00ee" />
-
-    
-
-▲ [앱 설정] ➔ [플랫폼] ➔ [Web]: http://localhost 등록
-
-<img width="1333" height="536" alt="image" src="https://github.com/user-attachments/assets/d75d4689-f54d-4a6b-aa2a-7f94a224fe3d" />
-
-
-▲ [카카오맵 API 사용 설정]: 상태 ON 전환
-
-# 6. 실행 화면 및 결과
-
-프로그램 실행 프롬프트: python travel_planner.py -date "2026-08-07” 
-
-실행이 완료되면 results/ 폴더에 날짜별 파일이 저장됨
-
-- results/2026-08-07_data.json: 1차 추천 결과, 맛집 검색 데이터, 오류 기록이 포함된 원본 JSON
-- results/2026-08-07_travel_plan.md: 최종 완성된 마크다운 여행 리포트
-
-## 6.1. CLI 정상 실행 로그 캡처
-
-<img width="867" height="197" alt="image" src="https://github.com/user-attachments/assets/5c5bdb64-a08f-4cff-ab08-a0192fddaac3" />
-
-
-▲ CLI 터미널에서 프로그램이 정상 실행되어 카카오 API 맛집 검색까지 에러 없이 완료된 화면
-
-## 6.2 생성된 원본 데이터 JSON (results/2026-08-07_data.json)
-
-<img width="1215" height="935" alt="image" src="https://github.com/user-attachments/assets/275a950b-9779-4c10-938f-513da8456a18" />
-
-
-▲ 1차 추천 정보, Kakao 맛집 검색 결과(좌표, URL 포함), 에러 상태(errors: [])가 포함된 구조화 데이터
-
-## 6.3 최종 여행 리포트 Markdown (results/2026-08-07_travel_plan.md)
-
-<img width="1144" height="880" alt="image" src="https://github.com/user-attachments/assets/4eab05b0-860d-40c4-976a-ef2d1f3adaed" />
-
-
-▲ 사용자 전달용 마크다운 형식 리포트로 일일 일정과 맛집 방문 링크 등 구성된 파일
-
-# 7. 핵심 기술 개념 및 과제 회고
-
-## 7.1 REST API 요청/응답 구조 및 HTTP 메서드(GET / POST)
-
-- REST API 구조: 클라이언트와 서버가 HTTP 프로토콜을 통해 자원을 주고받는 아키텍처이며 요청은 URL, HTTP Method, Header(인증 키 등), Body/Query Parameter로 구성되며, 응답은 HTTP Status Code(200, 401, 403 등)와 JSON Data를 반환함
-- GET 메서드: 서버의 데이터를 조회/요청할 때 사용하고 데이터가 URL 파라미터에 노출되며, 캐싱이 가능합니다. (예: Kakao Local 맛집 검색 API)
-- POST 메서드: 서버에 데이터를 제출/생성하거나 복잡한 페이로드(본문 데이터)를 전달할 때 사용하며 데이터가 HTTP Request Body에 실려 전달되므로 URL에 노출되지 않으며 길이 제한이 없음 (예: OpenAI Chat Completion API)
-
-## 7.2 LLM 출력을 구조화(JSON)하여 다음 API의 입력으로 연결하는 흐름
-
-- Chaining 프로세스: LLM의 자연어 응답을 system_prompt로 제어하여 정확한 JSON Schema 형태만 출력하도록 강제함
-- 연결 흐름:
-    1. LLM Output: {"recommended_city": "부산", ...} 형태로 1차 데이터 생성
-    2. Python Parsing: json.loads()를 통해 파이썬 Dictionary 객체로 변환
-    3. Data Extraction: city = data["recommended_city"] 로 키값 추출
-    4. Map API Input: 추출한 부산 파라미터를 Kakao API 요청 키워드로 대입하여 연쇄 파이프라인 형성
-
-## 7.3 외부 API 호출 대표 오류 및 대응 원칙
-
-- 인증 오류 (401 / 403): API 키 오타, 헤더명 불일치, 카카오 콘솔 내 도메인 미등록(http://localhost) 또는 카카오맵 서비스 미활성화(disabled OPEN_MAP_AND_LOCAL) 시 발생함
-    - 대응 원칙: 오류 발생 시 프로그램 전체를 중단시키지 않고 errors 목록에 로그를 남긴 후 맛집 섹션을 '데이터 없음'으로 유연하게 처리하여 3단계 최종 리포트 생성 완성
-- 쿼터 초과 (429): API 호출 제한 사용량을 초과한 경우
-    - 대응 원칙: 지연 후 재시도를 수행하거나, 지체 없이 백업 데이터/기본값을 채워 전체 프로세스를 보장함
-- 네트워크 오류 (Timeout / Connection Error): 외부 서버 응답 불능 시 발생함
-    - 대응 원칙: try-except requests.exceptions.RequestException으로 예외를 포획함
-- JSON 파싱 오류: LLM이 JSON 외에 설명글을 덧붙이거나 마크다운 블록(```json)을 포함하여 파싱에 실패하는 경우
-    - 대응 원칙: 정규표현식으로 JSON 문맥만 추출하거나, 프롬프트를 보완하여 최대 1회 재시도를 수행함
-
-## 7.4 API 키를 .env / 환경변수로 관리하는 이유 및 필요성
-
-- 협업 및 공개 저장소(Git) 실수로 인한 키 유출 방지:
-GitHub 같은 오픈소스 저장소에 코드를 push할 때 .gitignore에 .env를 등록해 두면, 소스코드가 공개되어도 API 키는 안전하게 로컬 환경에만 남게 됨
-- 운영 및 배포 환경의 유연성 (코드 수정 최소화):
-개발, 테스트, 운영 서버 환경에 따라 사용하는 API 키가 다를 때 코드를 일일이 수정할 필요 없이 환경변수값만 바꿔서 적용할 수 있음. 키가 만료되어 교체할 때도 소스코드 재배포 없이 .env 파일만 수정하면 됨
-- 무단 도용 및 과금/쿼터 관련 사고 예방:
-OpenAI, Kakao 등 대다수의 API 서비스는 사용량에 따라 실제 비용이 청구되는데 키가 외부에 노출될 경우 제3자에 의해 무단 도용되어 막대한 경제적 피해가 발생하거나 Daily Quota가 소진되어 서비스가 마비되는 위험을 차단할 수 있음
-
-# 8. 보너스 과제 - 2. 결과 캐싱
-
-동일한 -date로 재실행 시, 이미 저장된 results/{date}_data.json 원본 데이터가 존재하면 외부 API 추가 호출 없이 저장된 데이터를 재활용하여 속도 최적화 및 API 비용을 절감하도록 설계됨
-
-<img width="740" height="328" alt="image" src="https://github.com/user-attachments/assets/d96f67e6-64fe-4c90-9de4-41bed614ebb9" />
-
-
-▲ 코드 추가
-
-<img width="863" height="155" alt="image" src="https://github.com/user-attachments/assets/e82e936d-4374-4689-9ab7-cb57dfb241d5" />
-
-
-▲ 동일 날짜 2회 실행 시 API 호출을 건너뛰는 캐싱 적용 CLI 화면 (1회는 이미 본 과제에서 실행)
-
-성과: 동일한 날짜로 프로그램을 재실행할 경우, 이미 생성된 로컬 데이터(results/{date}_data.json)를 재활용하도록 구현하여 불필요한 외부 API 호출을 차단함. 이를 통해 API 과금 비용을 절감하고 프로그램 응답 속도를 극대화하는 캐싱 최적화의 기본 원리를 적용함
-
-# 9. 결론 및 과제 소감
-
-- 본 프로젝트를 진행하며 단순히 단일 API를 호출하는 수준을 넘어, LLM의 비정형 출력을 Pydantic 스키마 기반의 JSON 데이터로 구조화하고 이를 다시 외부 지도 API의 입력값으로 전달하는 API Chaining 파이프라인을 성공적으로 구축함
-- 특히 실무 환경에서 빈번히 발생하는 네트워크 타임아웃, 외부 API 인증 실패(401/403), JSON 파싱 오류 등의 장애 상황에서도 프로그램 전체가 중단되지 않고, errors 로그 기록 및 Fallback(대안 데이터) 처리를 통해 최종 리포트 생성을 완료하는 유연한 기능 저하 방식의 에러 핸들링 설계 가치를 이해할 수 있었음
-- .env 환경변수와 .gitignore를 활용한 API 키 보안 관리 및 가상환경 기반의 패키지 분리 설정을 통해, 오픈소스 협업 및 배포 환경에서 지켜야 할 기본적이고 핵심적인 보안 개발 습관을 체득함
-
+- **GitHub Repository**: [https://github.com/hyoryeomii/codyssey5/tree/main](https://github.com/hyoryeomii/codyssey5/tree/main)
 
 ---
 
-## 🔗 GitHub 소스코드 저장소
-- **Repository**: [hyoryeomii/codyssey5/tree/main](https://github.com/hyoryeomii/codyssey5/tree/main)
-*※ 보안 및 환경 관리를 위해 `.env` 및 `venv/` 폴더는 Git 추적에서 제외*
+## 1. 주요 기능
+- **CLI 입력 지원 및 검증**: `-date YYYY-MM-DD` 형식으로 지정된 날짜 입력 받음 및 형식 검증 (`argparse`)
+- **LLM 구조화 출력**: OpenAI API (Structured Output)를 활용해 JSON 형식으로 도시, 날씨, 축제, 추천 이유 추출
+- **장소 검색 및 맛집 추출**: Kakao Local 키워드 검색 API로 해당 도시 맛집 5곳 정보(이름, 주소, 카테고리, 좌표, URL) 조회
+- **예외 및 파이프라인 관리**: API 키 미설정 시 즉시 종료, 지도 API 실패/검색 결과 0건 발생 시 리포트 연속 생성, LLM 파싱 실패 시 1회 재시도
+- **결과 자동 파일화 및 캐싱**: `results/` 폴더에 원본 데이터 JSON 및 최종 Markdown 리포트 저장. 동일 날짜 재실행 시 파일 기반 캐싱 적용
+
+---
+
+## 2. 개발 환경
+- **Python**: 3.10 이상
+- **주요 라이브러리**: `openai`, `requests`, `python-dotenv`, `pydantic`
+
+---
+
+## 3. 프로그램 실행 가이드 및 CLI 사용법
+
+### 올바른 실행 예시
+```bash
+python travel_planner.py -date "2026-08-07"
+```
+
+### 잘못된 입력 시 출력 스니펫 (예: 날짜 형식 오류)
+```text
+$ python travel_planner.py -date "20260807"
+
+[ERROR] 올바르지 않은 날짜 형식입니다: '20260807'
+사용법 예시: python travel_planner.py -date '2026-08-07'
+```
+
+---
+
+## 4. API 키 발급 및 설정 방법
+
+### 1. OpenAI API 키 발급
+1. [OpenAI API](https://platform.openai.com/) 접속 후 로그인
+2. `API Keys` 메뉴에서 새 API 키 생성 및 복사
+
+### 2. Kakao Local API 키 발급
+1. [Kakao Developers](https://developers.kakao.com/) 접속 후 로그인
+2. `내 애플리케이션` > `애플리케이션 추가하기`
+3. 생성된 앱의 `앱 키` 중 **`REST API 키`** 복사
+
+### 3. `.env` 파일 설정
+프로젝트 최상위 디렉토리에 `.env` 파일을 생성하고 발급받은 키를 설정합니다.
+
+```env
+OPENAI_API_KEY="sk-..."
+KAKAO_REST_KEY="f8..."
+```
+
+---
+
+## 5. 보안 및 API 키 관리 정책
+
+- **API 키 하드코딩 금지**: `OPENAI_API_KEY` 및 `KAKAO_REST_KEY`는 소스코드에 절대 포함하지 않고 외부 `.env` 파일로 분리 관리합니다.
+- **Git 추적 제외 증빙**: `.gitignore` 파일에 `.env` 및 `venv/` 경로를 등록하여 버전 관리 시스템에 실제 API 키가 유출되지 않도록 처리하였습니다.
+  ```gitignore
+  # .gitignore 설정 내용
+  .env
+  venv/
+  results/
+  ```
+- **제출물 비노출 확인**: GitHub 저장소 및 제출물 내 코드/결과 샘플에 실제 API 키 값이 포함되어 있지 않음을 증명 및 확인하였습니다.
+
+---
+
+## 6. 함수 및 모듈 단위 분리 명세
+
+프로그램은 단일 책임 원칙(SRP)에 따라 각 기능이 함수 단위로 독립 분리되어 있습니다.
+
+| 함수명 | 입력 (Input) | 출력 (Output) | 주요 역할 및 책임 |
+|---|---|---|---|
+| `validate_date(date_str)` | `date_str: str` | `bool` | 입력된 날짜의 'YYYY-MM-DD' 포맷 유효성 검증 |
+| `get_llm_recommendation(travel_date, retry)` | `travel_date: str`, `retry: bool` | `dict \| None` | OpenAI Structured Output 기반 1차 여행지 추천 및 파싱 실패 시 1회 재시도 |
+| `search_places_kakao(city)` | `city: str` | `list[dict]` | Kakao Local API(HTTP GET)를 통한 맛집 5곳 검색 및 에러/EMPTY 예외 처리 |
+| `generate_markdown_report(travel_date, rec_data, places_data)` | `travel_date: str`, `rec_data: dict`, `places_data: list` | `str` | 수집된 데이터와 오류 이력을 바탕으로 최종 Markdown 리포트 생성 (HTTP POST) |
+| `main()` | CLI 입력 (`-date`) | 결과 파일 저장 및 로그 출력 | 전체 실행 흐름 제어, 파일 캐싱 여부 검사, 결과 파일 저장 |
+
+---
+
+## 7. Pydantic을 활용한 LLM 응답 검증 상세
+
+OpenAI API 응답의 타입 안정성을 보장하기 위해 `pydantic.BaseModel`을 사용해 검증 스키마를 정의하였습니다.
+
+```python
+class TravelRecommendation(BaseModel):
+    recommended_city: str  # 필수: 추천 도시명 (문자열)
+    weather: str           # 필수: 해당 시기 날씨 요약 (문자열)
+    events: list[str]      # 필수: 축제 및 행사 후보 목록 (문자열 리스트)
+    reason: str            # 필수: 추천 이유 (문자열)
+```
+
+- **필수 키 검증**: LLM 응답이 위 4개 필드를 모두 정확히 포함하지 않거나 데이터 타입이 다를 경우 Pydantic `ValidationError`가 발생합니다.
+- **실패 시 처리**: 검증 실패 시 `retry=True` 플래그와 함께 `get_llm_recommendation()`을 1회 재호출하여 규격을 재요청하며, 최종 실패 시 `errors_log`에 기록하고 종료합니다.
+
+### 1차 추천 생성 결과 (JSON 스니펫 예시)
+```json
+{
+  "recommended_city": "강릉",
+  "weather": "맑고 선선한 바람이 부는 전형적인 가을 날씨입니다.",
+  "events": ["강릉 바우길 걷기 행사", "경포호 야경 투어"],
+  "reason": "8월 초순의 강릉은 바다와 산을 동시에 즐기기에 최적의 장소입니다."
+}
+```
+
+---
+
+## 8. 지도 API 교체 추상화 및 키워드 정규화 전략
+
+### 지도 API 교체 추상화 설계 (Pluggable Architecture)
+현재 구현체는 Kakao Local API를 사용하지만, 네이버 지도 API 또는 Google Places API로 쉽게 교체할 수 있도록 추상화 구조를 고려해 설계되었습니다.
+- **결과 데이터 표준화**: API 변경 시에도 메인 로직이 영향을 받지 않도록 장소 데이터 구조를 아래와 같이 표준화하여 리턴합니다.
+  ```json
+  {
+    "name": "장소명",
+    "address": "도로명주소",
+    "category": "카테고리",
+    "url": "상세URL",
+    "x": 128.899,
+    "y": 37.751
+  }
+  ```
+
+### 추천 도시 키워드 정규화 (Normalization) 전략
+- **키값 정규화 추출**: `rec_data.get("recommended_city", "제주")` 방식으로 안전하게 도시 키워드를 추출합니다.
+- **검색 키워드 보정**: LLM이 반환한 도시명 뒤에 `맛집` 키워드를 결합(`{city} 맛집`)하여 검색 성공률을 정규화합니다.
+- **검색 실패(0건/오류) 시 Fallback**: 검색 결과가 없거나 API 오류(401/403 등)가 발생하면 `places`를 빈 리스트 `[]`로 처리하고, 리포트에 `- 데이터 없음 (장소 검색 결과 0건)`으로 명시하여 전체 파이프라인이 중단되지 않고 연속 동작합니다.
+
+---
+
+## 9. HTTP 메서드 및 네트워크 처리
+- **GET 메서드 (Kakao Local API)**: 단순 데이터 조회 요청이며, 조회 조건이 URL 파라미터(`query`)로 전달되므로 GET을 사용합니다.
+- **POST 메서드 (OpenAI Completions API)**: LLM 프롬프트 데이터 전송 및 구조화 응답 생성을 위한 요청이므로 POST를 사용합니다.
+
+---
+
+## 10. 결과 파일 저장 및 캐싱 (보너스 기능)
+
+### 저장 구조 (`results/` 폴더)
+- `results/{YYYY-MM-DD}_data.json`: 1차 추천 + 맛집 데이터 + 오류 이력 원본 JSON
+- `results/{YYYY-MM-DD}_travel_plan.md`: 최종 렌더링된 마크다운 보고서
+
+### 결과 JSON 구조 및 오류 이력 (Sample)
+```json
+{
+  "recommendation": {
+    "recommended_city": "강릉",
+    "weather": "맑음",
+    "events": ["축제1"],
+    "reason": "추천이유"
+  },
+  "places": [
+    {
+      "name": "식당명",
+      "address": "주소",
+      "category": "음식점",
+      "url": "http://...",
+      "x": 128.89,
+      "y": 37.75
+    }
+  ],
+  "errors": [
+    {
+      "timestamp": "2026-08-07 01:15:00",
+      "step": "place_search",
+      "type": "EMPTY_RESULT",
+      "message": "0 results for query=속초 맛집"
+    }
+  ]
+}
+```
+
+### 캐싱 최적화 적용
+동일한 `-date`로 재실행 시 이미 생성된 `results/{date}_data.json` 및 `.md` 파일이 존재하면 외부 API 추가 호출을 즉시 건너뛰고 기존 파일을 재활용합니다. 이를 통해 외부 API 과금 비용을 절감하고 응답 속도를 최적화하였습니다.
+*(※ 현재는 파일 존재 여부 기반으로 캐싱되며, 향후 `--force` 옵션을 통한 강제 갱신 정책 확장이 가능하도록 설계되었습니다.)*
