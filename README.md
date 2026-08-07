@@ -40,7 +40,14 @@ travel_project/
 
 
 ## 2.2 모듈 및 주요 함수 목록 (입출력 명세)
-함수/모듈명입력값 (Input)출력값 (Output)주요 책임 및 역할validate_date(date_str)str (예: "2026-08-07")datetime.date 또는 ExceptionCLI 날짜 입력 형식을 검증하고 불일치 시 종료 및 도움말 출력get_ai_recommendation(date_str)str (날짜)TravelRecommendation (Pydantic Model)OpenAI Structured Output을 호출하여 1차 추천 JSON 생성 (실패 시 1회 재시도)normalize_city_name(raw_city)str (자연어 도시명)str (정규화된 도시명)불명확한 지명 보정 및 지도 검색용 키워드 표준화search_places(city, category)city: str, category: strList[Dict] (장소 목록)지도 API를 호출하여 장소 검색 (추상화 래퍼를 통해 처리)generate_markdown_report(data)Dict (통합 데이터)str (마크다운 문자열)OpenAI LLM을 통해 최종 마크다운 리포트 서식 생성main()CLI ArgumentsJSON / MD File전체 파이프라인 제어, 캐싱 검사, 에러 기록 및 파일 저장
+| 함수/모듈명 | 입력값 (Input) | 출력값 (Output) | 주요 책임 및 역할 |
+| :--- | :--- | :--- | :--- |
+| `validate_date(date_str)` | `str` (예: `"2026-08-07"`) | `datetime.date` 또는 `Exception` | CLI 날짜 입력 형식을 검증하고 불일치 시 종료 및 도움말 출력 |
+| `get_ai_recommendation(date_str)` | `str` (날짜) | `TravelRecommendation` (Pydantic Model) | OpenAI Structured Output을 호출하여 1차 추천 JSON 생성 (실패 시 1회 재시도) |
+| `normalize_city_name(raw_city)` | `str` (자연어 도시명) | `str` (정규화된 도시명) | 불명확한 지명 보정 및 지도 검색용 키워드 표준화 |
+| `search_places(city, category)` | `city: str`, `category: str` | `List[Dict]` (장소 목록) | 지도 API를 호출하여 장소 검색 (추상화 래퍼를 통해 처리) |
+| `generate_markdown_report(data)` | `Dict` (통합 데이터) | `str` (마크다운 문자열) | OpenAI LLM을 통해 최종 마크다운 리포트 서식 생성 |
+| `main()` | CLI Arguments | `JSON / MD File` | 전체 파이프라인 제어, 캐싱 검사, 에러 기록 및 파일 저장 |
 
 ## 2.3 API 키 보안 및 환경변수 로딩 방식 (하드코딩 방지 검증)
 소스코드 내 API 키 하드코딩을 원천 차단하기 위해 python-dotenv를 사용하며, 실행 시 키 검증 로직 포함
