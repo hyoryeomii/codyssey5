@@ -75,12 +75,16 @@ travel_project/
 
 ▲ OpenAI 1차 추천 (Structured Output & 재시도 1회)
 
+- **Pydantic 필수 키 검증 및 Fallback 처리**: Pydantic을 이용해 `recommended_city`, `weather`, `reason`을 필수 키로 검증합니다. 만약 LLM 응답 파싱 실패 시 미리 정의된 Fallback(대체) 데이터를 주입하고 `errors` 리스트에 에러를 누적 기록하여 프로그램이 중단되지 않도록 처리
+
 ### **3.3 2차 장소 API 연동: 추천된 도시를 기반으로 Kakao Local API를 호출하여 맛집 5곳 데이터 실시간 검색**
 
 <img width="1076" height="961" alt="image" src="https://github.com/user-attachments/assets/0314d96b-bd38-4b79-b76b-206c8322e297" />
 
 
 ▲ Kakao Local API 맛집 검색 (예외 발생 시 Fallback)
+
+**입력 키워드 정규화(Normalization) 전략**: `normalize_city_name()` 함수를 통해 LLM이 반환한 "부산광역시 해운대구"와 같은 불확실하거나 긴 지명을 시/군/구 단위의 표준 검색 키워드(예: "부산")로 정규화하여 지도 API 검색 성공률을 높임
 
 ### **3.4 결과 리포트 자동 생성: 원본 데이터(results/YYYY-MM-DD_data.json) 및 최종 마크다운 리포트(results/YYYY-MM-DD_travel_plan.md) 저장**
 
